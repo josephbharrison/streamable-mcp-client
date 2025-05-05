@@ -1,0 +1,9 @@
+{
+    "venvPath": ".",
+    "venv": "venv",
+    "disableTaggedHints": true,
+    "analysis": {
+        "strictMode": true,
+        "disableTaggedHints": true
+    }
+}
