@@ -6,21 +6,26 @@
 
 ```mermaid
 graph LR
-    %% main flow ---------------------------------------------------------
-    main[main.py] -->|RunResultStreaming| rs(StreamableAgent.run_streamed)
-    rs --> sas[StreamableAgentStream<br/>(multiplexer)]
+    %% ───────────────────────── Application code ───────────────────────
+    subgraph "Python Application"
+        main[main.py]
+        agent[StreamableAgent]
+        mux[StreamableAgentStream (multiplexer)]
 
-    %% server‑side notifications ----------------------------------------
-    sse[SSE “notifications/*”] --> mcp[MCPServerSseWithNotifications<br/>(wraps MCPServerSse)]
-    mcp --> sas
+        main --> agent
+        agent --> mux
+    end
 
-    %% what the multiplexer does ----------------------------------------
-    subgraph sas_details["StreamableAgentStream (multiplexer)"]
-        direction TB
-        hist[synthetic assistant<br/>message & history]
-        deltas[agent deltas]
-        sas --> hist
-        sas --> deltas
+    %% ─────────────────────── MCP client plumbing ──────────────────────
+    subgraph "MCP Client Wrapper"
+        mcp[MCPServerSseWithNotifications]
+        mux --> mcp
+    end
+
+    %% ────────────────────────── MCP server side ───────────────────────
+    subgraph "MCP Server"
+        sse[SSE endpoint\nnotifications/*]
+        mcp --> sse
     end
 ```
 
