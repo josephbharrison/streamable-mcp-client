@@ -1,19 +1,20 @@
 # streamable‑mcp‑client
 
-> **Real‑time bridge for *streaming* MCP tools**
-> **Streams MCP “notifications/*” events straight through to your UI and into the agent’s conversation history, _while the tool is still running_.**
+**Real‑time *streaming* of MCP tools**
+
+Streams MCP “notifications/*” events straight through to your UI and into the agent’s conversation history, _while the tool is still running_.
 
 `streamable‑mcp‑client` glues **OpenAI Agents** to any MCP server that emits
 **live notifications** (SSE and Streamable HTTP [openai-agents SDK support pending]).
 With it you can build tools that:
 
 * push incremental results (e.g. *“chunk #17 of your 1 GB file uploaded”*)
-* let the assistant comment on those results on the fly
-* finish with a fully coherent, single‑run chat history—no hacks, no polling
+* let the assistant comment on notifications
+* finish with a fully coherent, single‑run chat history without polling
 
 Behind the scenes the library:
 
-1. **Surfaces every `notifications/*` chunk immediately** as a normal
+1. **Surfaces every `notifications/message` chunk immediately** as a normal
    `ResponseTextDeltaEvent`, so front‑ends (web, CLI, etc.) print progress in
    real time.
 2. **Appends the chunk to the agent’s `RunResultStreaming.new_items` right
