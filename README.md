@@ -33,7 +33,7 @@ For local testing spin up the matching server project:
 
 | project | spec implemented | endpoint | purpose |
 |---------|------------------|----------|---------|
-| **[`streamable‑mcp‑server`](https://github.com/your‑org/streamable-mcp-server)** | Streamable HTTP MCP (latest) | `/mcp` | modern, full‑duplex HTTP streaming |
+| **[`streamable‑mcp‑server`](https://github.com/josephbharrison/streamable-mcp-server)** | Streamable HTTP MCP (latest) | `/mcp` | modern, full‑duplex HTTP streaming |
 |  | SSE MCP (legacy spec) | `/sse` | protocol currently used by OpenAI Agents |
 
 Choose either endpoint (`--mode http` or `--mode sse`)—the client handles both.
