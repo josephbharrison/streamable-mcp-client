@@ -92,7 +92,7 @@ graph LR
 
 ---
 
-### **2 · Module‑by‑module cheat‑sheet**
+### **2 · OpenAI Agent Extensions **
 
 | file | what it adds |
 |------|--------------|
@@ -100,6 +100,64 @@ graph LR
 | **mcp_extensions/streamable_agent_stream.py** | The heart of the realtime relay.<br>• Multiplexes the agent‑event task **and** the notification‑task.<br>• Converts each text chunk into the minimal set of UI events (*ItemAdded → ContentPartAdded → TextDelta → ContentPartDone*).<br>• Appends a completed `MessageOutputItem` to `run.new_items` so the LLM can reference it.<br>• Calls **`Runner.continue_run()`** (our SDK patch) to pull exactly **one** semantic event from the still‑running agent, then yields it downstream. |
 | **mcp_extensions/streamable_agent.py** | Tiny convenience wrapper: given an `Agent` and an MCP server it returns a `StreamableAgentStream` each time you need a *streamed* call. |
 | **main.py** | Diagnostic demo.<br>• Shows how to spin up the SSE server.<br>• Prints both raw model deltas **and** relay‑injected deltas in the console (see the two `if` branches in the loop). |
+
+---
+
+#### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    %% concrete runtime objects
+    participant Main    as main.py run()
+    participant SA      as StreamableAgent
+    participant SAS     as StreamableAgentStream
+    participant Runner  as openai‑agents Runner
+    participant MCP     as MCPServerSseWithNotifications
+    participant SSE     as Remote SSE server
+
+    %% 1 construction and first call
+    Main  ->> SA      : run_streamed("stream up to 10 numbers")
+    SA    ->> Runner  : run_streamed(agent,input)
+    Runner-->> SA      : RunResultStreaming base_stream
+    SA    -->> Main    : StreamableAgentStream instance (SAS)
+    Note over Main,SAS: Main now iterates SAS.stream_events()
+
+    %% 2 background tasks inside SAS
+    Note over SAS,MCP: Task A base_stream.stream_events()  Task B MCP.stream_notifications()
+
+    %% 2b open SSE channel for notifications
+    SAS   ->> MCP     : subscribe_notifications
+    MCP   ->> SSE     : HTTP GET /sse
+    SSE  -->> MCP     : 200 OK (events begin)
+
+    %% 2c legacy tool call via POST
+    Runner->> MCP     : tools/call "stream_numbers"
+    MCP   ->> SSE     : HTTP POST /sse?sessionId=<id>  JSON‑RPC body
+    SSE  -->> MCP     : 200 OK (operation accepted)
+
+    %% 3A normal model deltas
+    SAS   ->> Runner  : Task A next base_stream event
+    Runner-->> SAS     : RawResponsesStreamEvent (model delta or tool‑call)
+    SAS   -->> Main    : same RawResponsesStreamEvent
+
+    %% 3B notifications from SSE stream
+    SSE  --) MCP      : event notifications/number 1
+    MCP  --) SAS      : JSON‑RPC notification number 1
+    SAS  --) Main     : ResponseTextDelta 1
+
+    %% 4 commit chunk then advance agent one step
+    SAS   ->> Runner  : continue_run(base_stream)
+    Runner-->> SAS     : next model delta
+    SAS  --) Main     : ResponseTextDelta from LLM
+
+    %% … numbers 2 through 10 follow the same 3B and 4 cycle …
+
+    %% 5 server closes the stream
+    SSE  --) MCP      : event notifications/stream_end
+    MCP  --) SAS      : stream_end sentinel
+    Runner-->> SAS     : final assistant message
+    SAS   -->> Main    : final assistant message
+```
 
 ---
 
@@ -156,59 +214,6 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
   its own multiplexing.
 
 
-```mermaid
-sequenceDiagram
-    %% concrete runtime objects
-    participant Main    as main.py run()
-    participant SA      as StreamableAgent
-    participant SAS     as StreamableAgentStream
-    participant Runner  as openai‑agents Runner
-    participant MCP     as MCPServerSseWithNotifications
-    participant SSE     as Remote SSE server
-
-    %% 1 construction and first call
-    Main  ->> SA      : run_streamed("stream up to 10 numbers")
-    SA    ->> Runner  : run_streamed(agent,input)
-    Runner-->> SA      : RunResultStreaming base_stream
-    SA    -->> Main    : StreamableAgentStream instance (SAS)
-    Note over Main,SAS: Main now iterates SAS.stream_events()
-
-    %% 2 background tasks inside SAS
-    Note over SAS,MCP: Task A base_stream.stream_events()  Task B MCP.stream_notifications()
-
-    %% 2b open SSE channel for notifications
-    SAS   ->> MCP     : subscribe_notifications
-    MCP   ->> SSE     : HTTP GET /sse
-    SSE  -->> MCP     : 200 OK (events begin)
-
-    %% 2c legacy tool call via POST
-    Runner->> MCP     : tools/call "stream_numbers"
-    MCP   ->> SSE     : HTTP POST /sse?sessionId=<id>  JSON‑RPC body
-    SSE  -->> MCP     : 200 OK (operation accepted)
-
-    %% 3A normal model deltas
-    SAS   ->> Runner  : Task A next base_stream event
-    Runner-->> SAS     : RawResponsesStreamEvent (model delta or tool‑call)
-    SAS   -->> Main    : same RawResponsesStreamEvent
-
-    %% 3B notifications from SSE stream
-    SSE  --) MCP      : event notifications/number 1
-    MCP  --) SAS      : JSON‑RPC notification number 1
-    SAS  --) Main     : ResponseTextDelta 1
-
-    %% 4 commit chunk then advance agent one step
-    SAS   ->> Runner  : continue_run(base_stream)
-    Runner-->> SAS     : next model delta
-    SAS  --) Main     : ResponseTextDelta from LLM
-
-    %% … numbers 2 through 10 follow the same 3B and 4 cycle …
-
-    %% 5 server closes the stream
-    SSE  --) MCP      : event notifications/stream_end
-    MCP  --) SAS      : stream_end sentinel
-    Runner-->> SAS     : final assistant message
-    SAS   -->> Main    : final assistant message
-```
 
 ## 6 · Patching the *openai‑agents* SDK
 
