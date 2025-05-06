@@ -115,41 +115,46 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
 
 ```mermaid
 sequenceDiagram
-    %% participants are concrete classes / files
-    participant Main     as main.py ‑ run()
-    participant SA       as StreamableAgent
-    participant SAS      as StreamableAgentStream
-    participant Runner   as openai‑agents Runner
-    participant MCP      as MCPServerSseWithNotifications
-    participant SSE      as SSE server
+    %% concrete classes / files
+    participant Main as main.py run()
+    participant SA as StreamableAgent
+    participant SAS as StreamableAgentStream
+    participant Runner as openai‑agents Runner
+    participant MCP as MCPServerSseWithNotifications
+    participant SSE as SSE server
 
     %% 1. construction
     Main ->> SA: run_streamed("stream up to 10 numbers")
     SA   ->> Runner: run_streamed(agent, input)
-    Runner -->> SA: RunResultStreaming (base_stream)
+    Runner -->> SA: RunResultStreaming base_stream
     SA  -->> Main: StreamableAgentStream (SAS)
 
     Note over Main,SAS: Main now iterates SAS.stream_events()
 
     %% 2. SAS starts two async tasks
-    Note over SAS,MCP: Task A – base_stream.stream_events()\nTask B – MCP.stream_notifications()
+    Note over SAS,MCP: Task A base_stream.stream_events()  Task B MCP.stream_notifications()
+
+    %% 2b. MCP opens the SSE channel
+    SAS ->> MCP: subscribe_notifications()
+    MCP ->> SSE: HTTP GET /sse
+    SSE -->> MCP: 200 OK (event stream)
 
     %% 3A. normal agent streaming
-    SAS ->> Runner: (Task A) next base_stream event
-    Runner -->> SAS: RawResponsesStreamEvent\n(LLM delta or tool‑call)
+    SAS ->> Runner: Task A next base_stream event
+    Runner -->> SAS: RawResponsesStreamEvent (LLM delta or tool‑call)
     SAS -->> Main: same RawResponsesStreamEvent
 
     %% 3B. notification streaming
-    SSE --) MCP: notifications/number 1
-    MCP --) SAS: JSON‑RPC payload 1
-    SAS --) Main: ResponseTextDelta 1          %% shows "1" in UI
+    SSE --) MCP: notifications/number 1
+    MCP --) SAS: JSON‑RPC payload 1
+    SAS --) Main: ResponseTextDelta "1"
 
-    %% 4. SAS commits chunk to history and advances agent
+    %% 4. commit chunk and advance agent
     SAS ->> Runner: continue_run(base_stream)
     Runner -->> SAS: next LLM delta
     SAS --) Main: ResponseTextDelta (LLM reply)
 
-    %% … numbers 2‑10 flow identically …
+    %% …numbers 2‑10 handled the same way…
 
     %% 5. stream ends
     SSE --) MCP: notifications/stream_end
