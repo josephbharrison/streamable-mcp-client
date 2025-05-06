@@ -1,260 +1,202 @@
-# mcp_extensions/streamable_agent_stream.py
+# ──────────────────────────────────────────────────────────────────────────────
+#  src/mcp_extensions/streamable_agent_stream.py   (realtime‑relay ✓streaming)
+# ──────────────────────────────────────────────────────────────────────────────
+"""
+Realtime “middle‑man” between an OpenAI‑Agents streamed run and an MCP
+notifications/* SSE feed:
+
+• every arriving notification chunk
+      → surfaces to the UI as a normal delta event, and
+      → is appended to RunResultStreaming.new_items immediately;
+• after appending we advance the outer agent once and forward **that** event,
+  so the user sees the assistant’s thoughts evolve while the tool is still
+  working.
+"""
+
+from __future__ import annotations
+
 import asyncio
-from typing import Any, AsyncGenerator, List
+import uuid
+from typing import Any, AsyncGenerator
 
 from openai.types.responses import (
+    ResponseContentPartAddedEvent,
+    ResponseContentPartDoneEvent,
+    ResponseOutputItemAddedEvent,
     ResponseOutputMessage,
     ResponseOutputText,
-    ResponseOutputItemAddedEvent,
-    ResponseContentPartAddedEvent,
     ResponseTextDeltaEvent,
-    ResponseContentPartDoneEvent,
 )
 
+from agents import Runner
 from agents.items import MessageOutputItem
 from agents.stream_events import RunItemStreamEvent
-
 from .server_with_notifications import MCPServerSseWithNotifications
 
 
+_GRACE_TICKS = 5  # 5 × 0.1 s of idle‑notification tolerance
+
+
+# ════════════════════════════════════════════════════════════════════════════
 class StreamableAgentStream:
-    """
-    Multiplex an OpenAI‑Agents streamed run with server‑side notifications so
-    callers see a single unified event stream.
-
-    * Agent tool‑call events arrive from the normal agent stream.
-    * SSE / logging notifications arrive from an MCPServerSseWithNotifications
-      instance and are converted into “assistant message” events **and** added
-      to the run‑history so the next LLM turn can reference them.
-    """
-
-    # --------------------------------------------------------------------- #
-    # construction                                                          #
-    # --------------------------------------------------------------------- #
     def __init__(self, base_stream, mcp_server: MCPServerSseWithNotifications):
-        self.base_stream = base_stream
-        self.mcp_server = mcp_server
+        self._base_stream = base_stream          # RunResultStreaming
+        self._mcp_server = mcp_server
 
-        # state for synthesised assistant‑message built from notifications
-        self.notification_started: bool = False
-        self.notification_content_index: int = 0
-        self.notification_message_id: str = "stream_notification"
+        # state of the synthetic assistant message we build for the UI
+        self._ui_msg_started = False
+        self._ui_msg_id = "stream_notification"
+        self._ui_content_index = 0
 
-        # buffer of notification text we’ve already streamed (for flush later)
-        self._notification_buffer: List[str] = []
-
-    # --------------------------------------------------------------------- #
-    # public API                                                            #
-    # --------------------------------------------------------------------- #
+    # ──────────────────────────────────────────────────────────────────────
     async def stream_events(self) -> AsyncGenerator[Any, None]:
-        """
-        Yield events coming from both:
-          • the standard Agent streaming run, and
-          • the server‑side notification stream.
-
-        When the notification stream completes (or is cancelled after a period
-        of inactivity) any accumulated text is committed to the Agent
-        run‑history so the model can “see” it on the next turn.
-        """
-        agent_stream = self.base_stream.stream_events()
-        notification_stream = self.mcp_server.stream_notifications()
+        agent_stream = self._base_stream.stream_events()
+        notif_stream = self._mcp_server.stream_notifications()
 
         agent_task = asyncio.create_task(agent_stream.__anext__())
-        notif_task = asyncio.create_task(notification_stream.__anext__())
+        notif_task = asyncio.create_task(notif_stream.__anext__())
 
-        agent_done = False
-        notif_done = False
-        idle_notification_counter = 0  # counts 0.1‑second ticks after agent done
+        agent_done = notif_done = False
+        idle_after_agent = 0
 
         while True:
-            active_tasks = [t for t in (agent_task, notif_task) if t is not None]
-            if not active_tasks:
+            active = [t for t in (agent_task, notif_task) if t]
+            if not active:
                 break
 
             done, _ = await asyncio.wait(
-                active_tasks,
-                timeout=0.1,                     # regain control regularly
-                return_when=asyncio.FIRST_COMPLETED,
+                active, timeout=0.1, return_when=asyncio.FIRST_COMPLETED
             )
 
-            # ------------------------------------------------------------------
-            # timeout – give notifications a brief window after agent finishes
-            # ------------------------------------------------------------------
+            # idle timeout after agent is finished
             if not done:
-                if agent_done and notif_task is not None:
-                    idle_notification_counter += 1
-                    if idle_notification_counter >= 5:  # ≈ 0.5 s
-                        # no more notifications → cancel the task and flush text
+                if agent_done and notif_task:
+                    idle_after_agent += 1
+                    if idle_after_agent >= _GRACE_TICKS:
                         notif_task.cancel()
                         try:
                             await notif_task
                         except asyncio.CancelledError:
                             pass
-                        self._finalise_notification_message()
                         notif_task = None
                         notif_done = True
-                continue  # loop again
+                continue
+            idle_after_agent = 0
 
-            # activity seen → reset idle counter
-            idle_notification_counter = 0
-
-            # ------------------------------------------------------------------
-            # agent stream activity
-            # ------------------------------------------------------------------
-            if agent_task is not None and agent_task in done:
+            # events from the agent run itself
+            if agent_task and agent_task in done:
                 try:
-                    result = agent_task.result()
-                    yield result
+                    evt = agent_task.result()
+                    yield evt
                     agent_task = asyncio.create_task(agent_stream.__anext__())
                 except StopAsyncIteration:
                     agent_task = None
                     agent_done = True
 
-            # ------------------------------------------------------------------
-            # notification stream activity
-            # ------------------------------------------------------------------
-            if notif_task is not None and notif_task in done:
+            # events from the MCP notification SSE stream
+            if notif_task and notif_task in done:
                 try:
-                    notification = notif_task.result()
+                    notif = notif_task.result()
 
-                    async for event in self._notification_to_events(notification):
-                        yield event
-
-                    # schedule next notification chunk
-                    notif_task = asyncio.create_task(notification_stream.__anext__())
+                    if notif.get("method") == "notifications/stream_end":
+                        notif_task = None
+                        notif_done = True
+                    else:
+                        async for ui_evt in self._handle_notification(notif):
+                            yield ui_evt
+                        notif_task = asyncio.create_task(notif_stream.__anext__())
                 except StopAsyncIteration:
-                    # notification stream finished → flush buffered text
-                    self._finalise_notification_message()
                     notif_task = None
                     notif_done = True
 
-            # exit once both streams are done
             if agent_done and notif_done:
                 break
 
-    # --------------------------------------------------------------------- #
-    # helpers – convert notification → assistant message events             #
-    # --------------------------------------------------------------------- #
-    async def _notification_to_events(self, notification: dict[str, Any]):
-        """
-        Transform a single `notifications/*` JSON‑RPC payload into the minimal
-        set of OpenAI streaming events required to render it as assistant
-        output.  Handles simple plaintext notifications.
-        """
-        text_parts = self._extract_text_from_notification(notification)
+    # ──────────────────────────────────────────────────────────────────────
+    async def _handle_notification(
+        self, notif: dict[str, Any]
+    ) -> AsyncGenerator[Any, None]:
+        """Turn one notification payload into UI + history + agent‑advance."""
+        for chunk in _extract_text_chunks(notif):
 
-        for text_part in text_parts:
-            # first chunk → start a new assistant message
-            if not self.notification_started:
-                self.notification_started = True
-                self.notification_content_index = 0
-
-                assistant_item = ResponseOutputMessage(
-                    id=self.notification_message_id,
-                    content=[],
-                    role="assistant",
-                    status="in_progress",
-                    type="message",
-                )
+            # 1) ── stream delta to UI ───────────────────────────────────
+            if not self._ui_msg_started:
+                self._ui_msg_started = True
                 yield ResponseOutputItemAddedEvent(
-                    item=assistant_item,
+                    item=ResponseOutputMessage(
+                        id=self._ui_msg_id,
+                        role="assistant",
+                        type="message",
+                        status="in_progress",
+                        content=[],
+                    ),
                     output_index=0,
                     type="response.output_item.added",
                 )
                 yield ResponseContentPartAddedEvent(
                     content_index=0,
-                    item_id=self.notification_message_id,
+                    item_id=self._ui_msg_id,
                     output_index=0,
                     part=ResponseOutputText(text="", type="output_text", annotations=[]),
                     type="response.content_part.added",
                 )
 
-            # stream delta to UI
             yield ResponseTextDeltaEvent(
-                content_index=self.notification_content_index,
-                delta=text_part,
-                item_id=self.notification_message_id,
+                content_index=self._ui_content_index,
+                delta=chunk,
+                item_id=self._ui_msg_id,
                 output_index=0,
                 type="response.output_text.delta",
             )
-
-            # keep a copy for final flush into history
-            self._notification_buffer.append(text_part)
-
-        # close the part if anything emitted
-        if text_parts:
             yield ResponseContentPartDoneEvent(
-                content_index=self.notification_content_index,
-                item_id=self.notification_message_id,
+                content_index=self._ui_content_index,
+                item_id=self._ui_msg_id,
                 output_index=0,
-                part=ResponseOutputText(
-                    text="".join(text_parts),
-                    type="output_text",
-                    annotations=[],
-                ),
+                part=ResponseOutputText(text=chunk, type="output_text", annotations=[]),
                 type="response.content_part.done",
             )
+            self._ui_content_index += 1  # prepare index for next chunk
 
-    # --------------------------------------------------------------------- #
-    # helpers – flush buffered notification text into run‑history           #
-    # --------------------------------------------------------------------- #
-    def _finalise_notification_message(self) -> None:
-        """
-        Turn the buffered notification text into a completed
-        `MessageOutputItem` and inject it into the run‑history so the next LLM
-        turn can reference it.
-        """
-        if not self._notification_buffer:
-            return
-
-        full_text = "".join(self._notification_buffer)
-
-        response_msg = ResponseOutputMessage(
-            id=self.notification_message_id,
-            content=[ResponseOutputText(text=full_text, type="output_text", annotations=[])],
-            role="assistant",
-            status="completed",
-            type="message",
-        )
-
-        # create a MessageOutputItem pointing at the *current* agent
-        message_item = MessageOutputItem(
-            raw_item=response_msg,
-            agent=self.base_stream.current_agent,
-        )
-
-        # 1️⃣  add to run‑history for prompt construction
-        self.base_stream.new_items.append(message_item)
-
-        # 2️⃣  emit semantic event so any listeners see it
-        self.base_stream._event_queue.put_nowait(
-            RunItemStreamEvent(
-                name="message_output_created",
-                item=message_item,
+            # 2) ── append chunk to RunResultStreaming.new_items ──────────
+            msg_item = MessageOutputItem(
+                raw_item=ResponseOutputMessage(
+                    id=f"notif_{uuid.uuid4().hex}",
+                    role="assistant",
+                    type="message",
+                    status="completed",
+                    content=[
+                        ResponseOutputText(text=chunk, type="output_text", annotations=[])
+                    ],
+                ),
+                agent=self._base_stream.current_agent,
             )
-        )
+            self._base_stream.new_items.append(msg_item)
+            self._base_stream._event_queue.put_nowait(
+                RunItemStreamEvent(name="message_output_created", item=msg_item)
+            )
 
-        # reset for any future notification stream
-        self._notification_buffer.clear()
-        self.notification_started = False
+            # 3) ── advance the outer agent once and surface that event ───
+            next_evt = await Runner.continue_run(self._base_stream)
+            if next_evt is not None:
+                yield next_evt
 
-    # --------------------------------------------------------------------- #
-    # static utils                                                          #
-    # --------------------------------------------------------------------- #
-    @staticmethod
-    def _extract_text_from_notification(notification: dict[str, Any]) -> list[str]:
-        """Return plaintext contained in a `notifications/*` payload."""
-        params = notification.get("params", {})
 
-        # Model A: assistant‑style content array
-        content = params.get("content", [])
-        parts = [c.get("text", "") for c in content if c.get("type") == "text"]
-        if parts:
-            return parts
+# ════════════════════════════════════════════════════════════════════════════
+# helpers
+# ════════════════════════════════════════════════════════════════════════════
+def _extract_text_chunks(notification: dict[str, Any]) -> list[str]:
+    """Pull plain‑text chunks out of a `notifications/*` JSON‑RPC payload."""
+    params = notification.get("params", {})
 
-        # Model B: generic `{type:"text", text:"…"}`
-        data = params.get("data", {})
-        if data.get("type") == "text" and data.get("text"):
-            return [data["text"]]
+    # assistant‑style content array
+    content = params.get("content", [])
+    chunks = [c.get("text", "") for c in content if c.get("type") == "text"]
+    if chunks:
+        return chunks
 
-        return []
+    # flat {type:"text", text:"…"}
+    data = params.get("data", {})
+    if data.get("type") == "text" and data.get("text"):
+        return [data["text"]]
+
+    return []

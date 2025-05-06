@@ -40,9 +40,18 @@ async def run(mcp_server: MCPServerSseWithNotifications):
     streamed_result = streamable_agent.run_streamed(input=message)
 
     async for event in streamed_result.stream_events():
-        if event.type == "raw_response_event" and isinstance(event.data, ResponseTextDeltaEvent):
-            if event.data.delta:
-                print(event.data.delta, end="", flush=True)
+        # ▸ relay‑injected notification chunk  (ResponseTextDeltaEvent directly)
+        if isinstance(event, ResponseTextDeltaEvent):
+            if event.delta:
+                print(event.delta, end="", flush=True)
+
+        # ▸ model‑originated chunk  (wrapped in RawResponsesStreamEvent)
+        elif (
+            getattr(event, "type", "") == "raw_response_event"
+            and isinstance(getattr(event, "data", None), ResponseTextDeltaEvent)
+            and event.data.delta
+        ):
+            print(event.data.delta, end="", flush=True)
 
     # --- Standard tool calls ---
     message = "Add these numbers: 7 and 22."
