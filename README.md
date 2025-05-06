@@ -14,14 +14,9 @@ With it you can build tools that:
 
 Behind the scenes the library:
 
-1. **Surfaces every `notifications/message` chunk immediately** as a normal
-   `ResponseTextDeltaEvent`, so front‑ends (web, CLI, etc.) print progress in
-   real time.
-2. **Appends the chunk to the agent’s `RunResultStreaming.new_items` right
-   away**, ensuring the LLM can reference it.
-3. **Steps the agent forward exactly once** via a tiny helper patch
-   (`Runner.continue_run`) so the next model delta reflects the fresh tool
-   output.
+1. **Surfaces every `notifications/message` chunk immediately** as a normal `ResponseTextDeltaEvent`, so front‑ends (web, CLI, etc.) print progress in real time.
+2. **Appends the chunk to the agent’s `RunResultStreaming.new_items` right away**, ensuring the LLM can reference it.
+3. **Steps the agent forward exactly once** via a tiny helper patch (`Runner.continue_run`) so the next model delta reflects the fresh tool output.
 
 The result: a chat experience where the assistant and the tool feel like a
 single, smoothly streaming conversation.
