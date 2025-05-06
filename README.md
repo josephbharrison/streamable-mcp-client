@@ -1,18 +1,29 @@
 # streamable‑mcp‑client
 
-**streamable‑mcp‑client** is a thin shim that lets an **OpenAI Agents** workflow react to a
-*long‑running* tool **while the tool is still streaming progress** over MCP
-(Message Channel Protocol).
+> **Real‑time bridge for *streaming* MCP tools**
+> **Streams MCP “notifications/*” events straight through to your UI and into the agent’s conversation history, _while the tool is still running_.**
 
-*   It attaches to an agent as an ordinary `MCPServer` but transparently **merges**
-    two asynchronous sources into one event stream:
+`streamable‑mcp‑client` glues **OpenAI Agents** to any MCP server that emits
+**live notifications** (SSE and Streamable HTTP [openai-agents SDK support pending]).
+With it you can build tools that:
 
-    1. normal LLM/tool‑call deltas coming from the OpenAI Agents runtime
-    2. `notifications/*` events pushed by the tool over MCP (SSE or Streamable HTTP)
+* push incremental results (e.g. *“chunk #17 of your 1 GB file uploaded”*)
+* let the assistant comment on those results on the fly
+* finish with a fully coherent, single‑run chat history—no hacks, no polling
 
-*   Each notification chunk is forwarded instantly to the UI **and** written into
-    the agent’s history; the agent is then stepped forward once so the model can
-    comment on the new data in real time.
+Behind the scenes the library:
+
+1. **Surfaces every `notifications/*` chunk immediately** as a normal
+   `ResponseTextDeltaEvent`, so front‑ends (web, CLI, etc.) print progress in
+   real time.
+2. **Appends the chunk to the agent’s `RunResultStreaming.new_items` right
+   away**, ensuring the LLM can reference it.
+3. **Steps the agent forward exactly once** via a tiny helper patch
+   (`Runner.continue_run`) so the next model delta reflects the fresh tool
+   output.
+
+The result: a chat experience where the assistant and the tool feel like a
+single, smoothly streaming conversation.
 
 ---
 
@@ -20,18 +31,15 @@
 
 For local testing spin up the matching server project:
 
-| project | spec implemented | endpoint | notes |
-|---------|------------------|----------|-------|
-| **[`streamable‑mcp‑server`](https://github.com/your‑org/streamable-mcp-server)** | |
-|  • *Streamable HTTP MCP (v latest)* | `/mcp` | modern, bidirectional HTTP streaming |
-|  • *SSE MCP (v legacy)* | `/sse` | the protocol the current OpenAI Agents SDK speaks |
+| project | spec implemented | endpoint | purpose |
+|---------|------------------|----------|---------|
+| **[`streamable‑mcp‑server`](https://github.com/your‑org/streamable-mcp-server)** | Streamable HTTP MCP (latest) | `/mcp` | modern, full‑duplex HTTP streaming |
+|  | SSE MCP (legacy spec) | `/sse` | protocol currently used by OpenAI Agents |
 
-Point the client at either endpoint (`--mode http` / `--mode sse`) and the rest
-“just works”.
+Choose either endpoint (`--mode http` or `--mode sse`)—the client handles both.
 
-> ℹ️  If you only need a quick demo, run the **legacy SSE server** – no changes
-> to the SDK are required.
-
+> ℹ️  If you just want to kick the tyres, run the **legacy SSE server**; the
+> OpenAI Agents SDK works with it out of the box.
 ---
 
 # Diagram
