@@ -22,8 +22,9 @@ The result: a chat experience where the assistant and the tool feel like a
 single, smoothly streaming conversation.
 
 ### Reference servers `streamable‑mcp‑server`
+[streamable-mcp-server](https://github.com/josephbharrison/streamable-mcp-server)
 
-That sibling repo ships **two demo servers**, but **⚠ note**:
+Sibling repo that ships **two demo servers**, but **⚠ note**:
 
 *OpenAI Agents SDK v0.0.14* supports **only the legacy SSE transport**.
 The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing** and interop tests, but the Python client in this project will ignore it until the SDK adds native support.
