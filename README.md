@@ -166,3 +166,44 @@ sequenceDiagram
     Runner-->> SAS     : final assistant message
     SAS   -->> Main    : final assistant message
 ```
+
+## 6 · Patching the *openai‑agents* SDK
+
+This repo relies on a **one‑liner helper** (`Runner.continue_run`) that is **not yet upstreamed** to *openai‑agents*.
+We ship that change as a standard `git‑apply` patch.
+
+|                  | path                                    |
+| ---------------- | --------------------------------------- |
+| patch file       | `patches/continue_run.patch`            |
+| target file      | `<venv‑site‑pkgs>/agents/runner.py`     |
+
+### Apply the patch
+
+```bash
+# from the repository root
+git apply patches/continue_run.patch
+```
+
+or, if you prefer patch:
+```bash
+patch -p1 < patches/continue_run.patch
+```
+
+Tip 📦 If you vendor the SDK in ./libs/openai‑agents/, run the same command inside that folder.
+
+### Verify
+
+```bash
+python - <<'PY'
+from agents.runner import Runner
+assert hasattr(Runner, "continue_run"), "patch did not apply!"
+print("✅  continue_run helper is present")
+PY
+```
+
+### Revert / re‑apply after upgrades
+```
+git apply -R patches/continue_run.patch   # ← undo
+pip install --upgrade openai-agents       # upgrade SDK
+git apply patches/continue_run.patch      # ← redo
+```

@@ -1,0 +1,83 @@
+--- a/agents/run.py	2024-05-06
++++ b/agents/run.py	2024-05-06
+@@
+     def _get_model(cls, agent: Agent[Any], run_config: RunConfig) -> Model:
+         ...
+         return run_config.model_provider.get_model(agent.model)
+
++
++    # ------------------------------------------------------------------ #
++    # Public helper • continue_run                                       #
++    # ------------------------------------------------------------------ #
++    # Motivation
++    # ----------
++    # The streaming API provided by **openai‑agents** only lets callers
++    # iterate over every event:
++    #
++    #     async for evt in run.stream_events(): ...
++    #
++    # There is no official “give‑me‑just‑one‑more‑event” primitive.
++    #
++    # Our real‑time MCP relay needs *precisely* that capability because it
++    # interleaves:
++    #   1. chunks that arrive from a long‑running tool (via SSE),
++    #   2. instant writes of those chunks into `run.new_items`, and
++    #   3. a single incremental advance of the same in‑flight agent so the
++    #      LLM can react step‑by‑step.
++    #
++    # Implementation
++    # --------------
++    # The helper peeks at the private `_event_queue` that backs the public
++    # generator and returns **exactly one** semantic event:
++    #
++    #     next_event = await Runner.continue_run(run)
++    #
++    # If the run is already complete it raises `RuntimeError`.  If the
++    # background task has crashed we propagate that exception immediately.
++    #
++    # Once the SDK exposes an official “peek / step” API, this patch can
++    # (and should) be removed.
++    #
++    @classmethod
++    async def continue_run(cls, result: "RunResultStreaming"):
++        """
++        Wait for and return the *next* semantic event from an
++        already‑running ``RunResultStreaming`` instance.
++
++        Parameters
++        ----------
++        result :
++            The in‑flight ``RunResultStreaming`` returned by
++            :py:meth:`Runner.run_streamed`.
++
++        Returns
++        -------
++        Any
++            The next item pulled from ``result._event_queue`` – typically a
++            ``RawResponsesStreamEvent`` or a guard‑rail / hand‑off event.
++
++        Raises
++        ------
++        RuntimeError
++            If the run has already completed.
++        Exception
++            If the background agent task finished with an error.
++        """
++        if result.is_complete:
++            raise RuntimeError("Run already completed")
++
++        # Surface any failure in the background task right away
++        if result._run_impl_task.done():
++            exc = result._run_impl_task.exception()
++            if exc:
++                raise exc
++
++        event = await result._event_queue.get()
++
++        # If the queue signals completion, ensure the task is joined
++        if isinstance(event, QueueCompleteSentinel):
++            await result._run_impl_task
++
++        return event
++
+ # end of Runner
