@@ -33,19 +33,19 @@ async def run(mcp_server: MCPServerSseWithNotifications):
 
     streamable_agent = StreamableAgent(agent, mcp_server)
 
-    # --- Streaming task ---
+    # --- Streaming tool call ---
     message = "stream up to 10 numbers."
     print(f"\n\nRunning: {message}")
 
     streamed_result = streamable_agent.run_streamed(input=message)
 
     async for event in streamed_result.stream_events():
-        # ▸ relay‑injected notification chunk  (ResponseTextDeltaEvent directly)
+        # relay‑injected notification chunk  (ResponseTextDeltaEvent directly)
         if isinstance(event, ResponseTextDeltaEvent):
             if event.delta:
                 print(event.delta, end="", flush=True)
 
-        # ▸ model‑originated chunk  (wrapped in RawResponsesStreamEvent)
+        # model‑originated chunk  (wrapped in RawResponsesStreamEvent)
         elif (
             getattr(event, "type", "") == "raw_response_event"
             and isinstance(getattr(event, "data", None), ResponseTextDeltaEvent)

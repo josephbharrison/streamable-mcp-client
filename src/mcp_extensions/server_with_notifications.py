@@ -1,39 +1,12 @@
 from typing import Any, AsyncGenerator, Optional
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
+from anyio.streams.memory import MemoryObjectReceiveStream
 from anyio import create_memory_object_stream
-from datetime import timedelta
 import json
 import asyncio
 
 from agents.mcp.server import MCPServerSse, MCPServerSseParams
-from mcp.client.session import ClientSession
 from mcp.types import JSONRPCMessage
 from httpx_sse._models import ServerSentEvent
-
-
-class ClientSessionWithLoggingNotifications(ClientSession):
-    """ClientSession that forwards notifications to the logging stream."""
-
-    def __init__(
-        self,
-        read_stream: MemoryObjectReceiveStream[JSONRPCMessage | Exception],
-        write_stream: MemoryObjectSendStream[JSONRPCMessage],
-        logging_send_stream: MemoryObjectSendStream[dict[str, Any]],
-        timeout: Optional[timedelta] = None,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(read_stream, write_stream, timeout, *args, **kwargs)
-        self._logging_send_stream = logging_send_stream
-
-    async def _received_notification(self, notification: Any) -> None:
-
-        await super()._received_notification(notification)
-
-        notification_dict = notification.model_dump()
-
-        if notification_dict.get("method", "").startswith("notifications/"):
-            await self._logging_send_stream.send(notification_dict)
 
 
 class MCPServerSseWithNotifications(MCPServerSse):
@@ -147,4 +120,5 @@ class MCPServerSseWithNotifications(MCPServerSse):
             "params": params.model_dump(),
         }
         await self._logging_send_stream.send(notification)
+
 
