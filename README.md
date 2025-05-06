@@ -189,7 +189,7 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
 
 ### Extending / modifying
 
-- **Richer notification payloads** (e.g. images, JSON)?
+- **Richer notification payloads** (e.g. images, JSON)
 
   Extend _extract_text_chunks() and the UI‑event construction logic.
 
