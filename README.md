@@ -42,7 +42,7 @@ The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing*
 
 # Diagram
 
-### **1 · Big‑picture flow**
+### Call flow
 
 ```mermaid
 graph LR
@@ -84,10 +84,9 @@ graph LR
   - Uses our patched helper Runner.continue_run() to step the outer agent forward **once**.
   - That lets the LLM “see” the latest tool output and decide what to say next while the tool is still running.
 
-
 ---
 
-### ** OpenAI Agent Extensions **
+### OpenAI Agent Extensions
 
 | file | what it adds |
 |------|--------------|
@@ -156,7 +155,7 @@ sequenceDiagram
 
 ---
 
-### ** Key methods in `StreamableAgentStream`**
+### Key methods in `StreamableAgentStream`
 
 | method | purpose |
 |--------|---------|
@@ -166,9 +165,9 @@ sequenceDiagram
 
 ---
 
-### ** Why patch OpenAI Agents SDK?**
+### Why patch OpenAI Agents SDK?
 
-### **Runner.continue_run**
+#### Runner.continue_run
 
 - The public SDK lets you **start** a streamed run and then iterate:
 
@@ -188,7 +187,7 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
 
 ---
 
-### ** Extending / modifying**
+### Extending / modifying
 
 - **Richer notification payloads** (e.g. images, JSON)?
 
