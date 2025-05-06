@@ -22,9 +22,7 @@
 
   custom MCPServerSseWithNotifications.
 
-  It then calls StreamableAgent.run_streamed() for the *long‑running* tool
-
-  request "stream up to 10 numbers.".
+  It then calls StreamableAgent.run_streamed() for the *long‑running* tool request "stream up to 10 numbers.".
 
 2. StreamableAgent.run_streamed() just forwards to the SDK’s
 
@@ -36,28 +34,20 @@
 
   - the agent’s *own* event generator (RunResultStreaming.stream_events()),
 
-  - the **notification stream** produced by
-
-    MCPServerSseWithNotifications.stream_notifications().
+  - the **notification stream** produced by MCPServerSseWithNotifications.stream_notifications().
 
 
 It emits a **single, unified** async stream that merges items from both.
 
 4. Every time an SSE **notification chunk** arrives, the multiplexer
 
-  - exposes it immediately as a ResponseTextDeltaEvent (so the UI can print
-
-    1\n2\n3… in realtime),
+  - exposes it immediately as a ResponseTextDeltaEvent (so the UI can print 1 2 3… in realtime),
 
   - copies the text into RunResultStreaming.new_items **right now**,
 
-  - uses our patched helper Runner.continue_run() to step the outer agent
+  - uses our patched helper Runner.continue_run() to step the outer agent forward **once**.
 
-    forward **once**.
-
-    That lets the LLM “see” the latest tool output and decide what to say
-
-    next while the tool is still running.
+    That lets the LLM “see” the latest tool output and decide what to say next while the tool is still running.
 
 
 ---
@@ -97,9 +87,7 @@ async for evt in run.stream_events(): ...
 
 - But you can’t say “give me just the **next** event and then pause”.
 
-- The realtime relay needs exactly that granularity: after *each*
-
-  notification chunk it must
+- The realtime relay needs exactly that granularity: after *each* notification chunk it must
 
   1. wake the agent,
 
@@ -108,16 +96,10 @@ async for evt in run.stream_events(): ...
   3. go back to waiting for the next notification.
 
 
-- continue_run() is therefore a minimal, ~20‑line helper that peeks one item
-
-  from the internal queue, taking care to propagate errors and to notice when
-
-  the background task has already finished.
+- continue_run() is therefore a minimal, ~20‑line helper that peeks one item from the internal queue, taking care to propagate errors and to notice when the background task has already finished.
 
 
-When the SDK one day exposes an official step() / poll() API the patch can
-
-be dropped.
+When the SDK one day exposes an official step() / poll() API the patch can be dropped.
 
 ---
 
