@@ -92,14 +92,14 @@ graph LR
 
 ---
 
-### **2 · Module‑by‑module cheat‑sheet**
+### **2 · Module‑by‑module cheat‑sheet**
 
-| **file** | **what it adds** |
-| --- | --- |
-| **mcp_extensions/server_with_notifications.py** | Sub‑class of the SDK’s MCPServerSse that1. opens a **second** in‑memory stream for “logging” notifications,2. exposes a single async generator stream_notifications() that yields both the *tool* notifications (from the SSE endpoint) and any *logging* notifications injected by the server. |
-| **mcp_extensions/streamable_agent_stream.py** | The heart of realtime relay.  It:• multiplexes the agent‑events task and the notification‑task.• turns each text chunk into the minimal set of UI events  (ItemAdded → ContentPartAdded → TextDelta → ContentPartDone).• appends a finished MessageOutputItem to run.new_items so the LLM can reference it.• calls **Runner.continue_run()** (the helper we patched into the SDK) to pull exactly *one* semantic event from the still‑running agent and then yields it downstream. |
-| **mcp_extensions/streamable_agent.py** | Tiny convenience wrapper: given an Agent and an MCP server it returns a StreamableAgentStream each time you want to make a *streamed* call. |
-| **main.py** | Demo / diagnostic script.  Shows:• how to spin up the SSE server,• how to watch both raw model deltas and relay‑injected deltas in the console.Notice the two if branches in the loop: one matches *relay* deltas (plain ResponseTextDeltaEvent), the other matches the model deltas that the SDK wraps inside a RawResponsesStreamEvent. |
+| file | what it adds |
+|------|--------------|
+| **mcp_extensions/server_with_notifications.py** | Sub‑class of the SDK’s `MCPServerSse` that<br>1. opens a **second** in‑memory stream for *logging* notifications, and<br>2. exposes a single async generator `stream_notifications()` that yields both **tool** notifications (from the SSE endpoint) **and** logging notifications injected by the server. |
+| **mcp_extensions/streamable_agent_stream.py** | The heart of the realtime relay.<br>• Multiplexes the agent‑event task **and** the notification‑task.<br>• Converts each text chunk into the minimal set of UI events (*ItemAdded → ContentPartAdded → TextDelta → ContentPartDone*).<br>• Appends a completed `MessageOutputItem` to `run.new_items` so the LLM can reference it.<br>• Calls **`Runner.continue_run()`** (our SDK patch) to pull exactly **one** semantic event from the still‑running agent, then yields it downstream. |
+| **mcp_extensions/streamable_agent.py** | Tiny convenience wrapper: given an `Agent` and an MCP server it returns a `StreamableAgentStream` each time you need a *streamed* call. |
+| **main.py** | Diagnostic demo.<br>• Shows how to spin up the SSE server.<br>• Prints both raw model deltas **and** relay‑injected deltas in the console (see the two `if` branches in the loop). |
 
 ---
 
