@@ -92,7 +92,7 @@ graph LR
 
 ---
 
-### **2 · OpenAI Agent Extensions **
+### ** OpenAI Agent Extensions **
 
 | file | what it adds |
 |------|--------------|
@@ -161,7 +161,7 @@ sequenceDiagram
 
 ---
 
-### **3 · Key methods in `StreamableAgentStream`**
+### ** Key methods in `StreamableAgentStream`**
 
 | method | purpose |
 |--------|---------|
@@ -171,7 +171,7 @@ sequenceDiagram
 
 ---
 
-### **4 · Why patch OpenAI Agents SDK?**
+### ** Why patch OpenAI Agents SDK?**
 
 ### **Runner.continue_run**
 
@@ -193,21 +193,21 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
 
 ---
 
-### **5 · Extending / modifying**
+### ** Extending / modifying**
 
-- **Want richer notification payloads** (e.g. images, JSON)?
+- **Richer notification payloads** (e.g. images, JSON)?
 
   Extend _extract_text_chunks() and the UI‑event construction logic.
 
-- **Need longer grace period?**
+- **Longer grace**
 
   Change _GRACE_TICKS (each tick = 100 ms).
 
-- **Skip immediate model reaction** (pass‑through only)?
+- **Skip immediate model reaction** (pass‑through only)
 
   Remove the call to Runner.continue_run() in _handle_notification().
 
-- **Multiple concurrent tools?**
+- **Multiple concurrent tools**
 
   Instantiate one StreamableAgentStream per tool invocation; each manages
 
@@ -215,7 +215,7 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
 
 
 
-## 6 · Patching the *openai‑agents* SDK
+## Patching the *openai‑agents* SDK
 
 This repo relies on a **one‑liner helper** (`Runner.continue_run`) that is **not yet upstreamed** to *openai‑agents*.
 We ship that change as a standard `git‑apply` patch.
