@@ -2,7 +2,7 @@
 
 **Real‑time *streaming* of MCP tools**
 
-Streams MCP “notifications/*” events straight through to your UI and into the agent’s conversation history, _while the tool is still running_.
+Streams MCP “notifications/message” events straight through to your UI and into the agent’s conversation history, _while the tool is still running_.
 
 `streamable‑mcp‑client` glues **OpenAI Agents** to any MCP server that emits
 **live notifications** (SSE and Streamable HTTP [openai-agents SDK support pending]).
