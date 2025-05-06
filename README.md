@@ -103,15 +103,13 @@ graph LR
 
 ---
 
-### **3 · Key methods in**
+### **3 · Key methods in `StreamableAgentStream`**
 
-### **StreamableAgentStream**
-
-| **method** | **purpose** |
-| --- | --- |
-| stream_events() | Main coroutine. Runs two tasks (agent_task, notif_task), waits on whichever completes first, and yields events. Implements a *grace period* (_GRACE_TICKS) to keep listening for late notifications after the agent itself has finished. |
-| _handle_notification() | Given **one** notifications/* payload:1. Converts its text into delta events for the UI.2. Creates a **completed** assistant MessageOutputItem and appends it to the in‑flight run’s new_items.3. Calls Runner.continue_run() once and yields the single returned event (usually another model delta or the final answer). |
-| _extract_text_chunks() | 2‑line helper that supports both the assistant‑style {"content":[...{type:"text"}...]} payload and the flat {"data":{"type":"text","text":"…" }} payload shapes. |
+| method | purpose |
+|--------|---------|
+| `stream_events()` | Main coroutine. Runs two tasks (`agent_task`, `notif_task`), waits on whichever completes first, and yields events. Also honors the *grace period* (`_GRACE_TICKS`) so late notifications are still processed after the agent has finished. |
+| `_handle_notification()` | For **one** `notifications/*` payload:<br>1&nbsp;· Converts its text into delta events for the UI.<br>2&nbsp;· Creates a *completed* assistant `MessageOutputItem` and appends it to the in‑flight run’s `new_items`.<br>3&nbsp;· Calls `Runner.continue_run()` **once** and yields that single event (usually a model delta or the final answer). |
+| `_extract_text_chunks()` | Tiny helper that supports both the assistant‑style `{"content":[…{"type":"text"}…]}` payload **and** the flat `{"data":{"type":"text","text":"…"}` shape. |
 
 ---
 
