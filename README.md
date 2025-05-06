@@ -27,19 +27,23 @@ single, smoothly streaming conversation.
 
 ---
 
-### Reference servers ▶︎ `streamable‑mcp‑server`
+### Reference servers ▶︎ `streamable‑mcp‑server`
 
-For local testing spin up the matching server project:
+That sibling repo ships **two demo servers**, but **⚠ note**:
 
-| project | spec implemented | endpoint | purpose |
-|---------|------------------|----------|---------|
-| **[`streamable‑mcp‑server`](https://github.com/josephbharrison/streamable-mcp-server)** | Streamable HTTP MCP (latest) | `/mcp` | modern, full‑duplex HTTP streaming |
-|  | SSE MCP (legacy spec) | `/sse` | protocol currently used by OpenAI Agents |
+*OpenAI Agents SDK v* current supports **only the legacy SSE transport**.
+The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing** and interop tests, but the Python client in this project will ignore it until the SDK adds native support.
 
-Choose either endpoint (`--mode http` or `--mode sse`)—the client handles both.
+| server file (repo root) | spec served | default port | endpoint | start command |
+|-------------------------|-------------|--------------|----------|---------------|
+| **`sseServer.ts`**      | **SSE MCP** (legacy – *supported* by openai‑agents) | **3000** | `http://localhost:3000/sse` | `npm run sse` |
+| `mcpServer.ts`          | Streamable HTTP MCP (latest spec – *not yet supported* by openai‑agents) | **3000** | `http://localhost:3000/mcp` | `npm run mcp` |
 
-> ℹ️  If you just want to kick the tyres, run the **legacy SSE server**; the
-> OpenAI Agents SDK works with it out of the box.
+> **Quick start:**
+> 1. `git clone https://github.com/josephbharrison/streamable‑mcp‑server`
+> 2. `cd streamable‑mcp‑server && npm ci`
+> 3. `npx tsx watch sseServer.ts`   *(launches the compatible SSE server)*
+> 4. In **this** repo, set the client mode to `"sse"` (default) and run `python src/main.py`.
 ---
 
 # Diagram
