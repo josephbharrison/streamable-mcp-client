@@ -113,7 +113,7 @@ graph LR
 
 ---
 
-### **4 · Why we patched the SDK**
+### **4 · Why patch OpenAI Agents SDK?**
 
 ### **Runner.continue_run**
 
