@@ -4,18 +4,24 @@
 
 ### **1 · Big‑picture flow**
 
-```
-┌───────────┐    RunResultStreaming           ┌─────────────────────────┐
-│  main.py  │ ──▶ StreamableAgent.run_streamed ─▶ StreamableAgentStream │
-└───────────┘                                 │  (multiplexer)          │
-                                              ├───────────────┬─────────┤
-                 SSE “notifications/*”        │               │ agent   │
-                 coming from your MCP server  │               │ deltas  │
-                          ▲                   │               ▼         │
-                          │           put      synthetic assistant      │
-                          │           into     message & history        │
-            MCPServerSseWithNotifications     └─────────────────────────┘
-            (wraps the stock `MCPServerSse`)
+```mermaid
+graph LR
+    %% main flow ---------------------------------------------------------
+    main[main.py] -->|RunResultStreaming| rs(StreamableAgent.run_streamed)
+    rs --> sas[StreamableAgentStream<br/>(multiplexer)]
+
+    %% server‑side notifications ----------------------------------------
+    sse[SSE “notifications/*”] --> mcp[MCPServerSseWithNotifications<br/>(wraps MCPServerSse)]
+    mcp --> sas
+
+    %% what the multiplexer does ----------------------------------------
+    subgraph sas_details["StreamableAgentStream (multiplexer)"]
+        direction TB
+        hist[synthetic assistant<br/>message & history]
+        deltas[agent deltas]
+        sas --> hist
+        sas --> deltas
+    end
 ```
 
 1. **main.py** creates a normal OpenAI Agents Agent but wires in our custom MCPServerSseWithNotifications. It then calls StreamableAgent.run_streamed() for the *long‑running* tool request "stream up to 10 numbers.".
