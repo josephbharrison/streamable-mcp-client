@@ -6,26 +6,26 @@
 
 ```mermaid
 graph LR
-    %% ───────────────────────── Application code ───────────────────────
-    subgraph "Python Application"
+    %% ────────────────────── 1. Python application ─────────────────────
+    subgraph Python_Application
         main[main.py]
-        agent[StreamableAgent]
-        mux[StreamableAgentStream (multiplexer)]
+        streamAgent[StreamableAgent]
+        mux["StreamableAgentStream<br/>(multiplexer)"]
 
-        main --> agent
-        agent --> mux
+        main --> streamAgent
+        streamAgent --> mux
     end
 
-    %% ─────────────────────── MCP client plumbing ──────────────────────
-    subgraph "MCP Client Wrapper"
-        mcp[MCPServerSseWithNotifications]
-        mux --> mcp
+    %% ───────────────────── 2. MCP client wrapper ──────────────────────
+    subgraph MCP_Client_Wrapper
+        mcpWrap[MCPServerSseWithNotifications]
+        mux --> mcpWrap
     end
 
-    %% ────────────────────────── MCP server side ───────────────────────
-    subgraph "MCP Server"
-        sse[SSE endpoint\nnotifications/*]
-        mcp --> sse
+    %% ────────────────────── 3. Remote MCP server ──────────────────────
+    subgraph MCP_Server
+        sse["SSE endpoint<br/>notifications/*"]
+        mcpWrap --> sse
     end
 ```
 
