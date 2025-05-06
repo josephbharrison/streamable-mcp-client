@@ -18,36 +18,20 @@
             (wraps the stock `MCPServerSse`)
 ```
 
-1. **main.py** creates a normal OpenAI Agents Agent but wires in our
+1. **main.py** creates a normal OpenAI Agents Agent but wires in our custom MCPServerSseWithNotifications. It then calls StreamableAgent.run_streamed() for the *long‑running* tool request "stream up to 10 numbers.".
 
-  custom MCPServerSseWithNotifications.
-
-  It then calls StreamableAgent.run_streamed() for the *long‑running* tool request "stream up to 10 numbers.".
-
-2. StreamableAgent.run_streamed() just forwards to the SDK’s
-
-  Runner.run_streamed() and wraps the returned RunResultStreaming
-
-  instance inside a **StreamableAgentStream** multiplexer.
+2. StreamableAgent.run_streamed() just forwards to the SDK’s Runner.run_streamed() and wraps the returned RunResultStreaming instance inside a **StreamableAgentStream** multiplexer.
 
 3. **StreamableAgentStream** keeps **two** asyncio tasks running:
-
-  - the agent’s *own* event generator (RunResultStreaming.stream_events()),
-
-  - the **notification stream** produced by MCPServerSseWithNotifications.stream_notifications().
-
-
-It emits a **single, unified** async stream that merges items from both.
+  - The agent’s *own* event generator (RunResultStreaming.stream_events()),
+  - The **notification stream** produced by MCPServerSseWithNotifications.stream_notifications().
+  - It emits a **single, unified** async stream that merges items from both.
 
 4. Every time an SSE **notification chunk** arrives, the multiplexer
-
-  - exposes it immediately as a ResponseTextDeltaEvent (so the UI can print 1 2 3… in realtime),
-
-  - copies the text into RunResultStreaming.new_items **right now**,
-
-  - uses our patched helper Runner.continue_run() to step the outer agent forward **once**.
-
-    That lets the LLM “see” the latest tool output and decide what to say next while the tool is still running.
+  - Exposes it immediately as a ResponseTextDeltaEvent (so the UI can print 1 2 3… in realtime),
+  - Copies the text into RunResultStreaming.new_items **right now**,
+  - Uses our patched helper Runner.continue_run() to step the outer agent forward **once**.
+  - That lets the LLM “see” the latest tool output and decide what to say next while the tool is still running.
 
 
 ---
@@ -86,16 +70,10 @@ async for evt in run.stream_events(): ...
 ```
 
 - But you can’t say “give me just the **next** event and then pause”.
-
 - The realtime relay needs exactly that granularity: after *each* notification chunk it must
-
-  1. wake the agent,
-
-  2. wait for **one** event (usually a model delta),
-
+  1. Wake the agent,
+  2. Wait for **one** event (usually a model delta),
   3. go back to waiting for the next notification.
-
-
 - continue_run() is therefore a minimal, ~20‑line helper that peeks one item from the internal queue, taking care to propagate errors and to notice when the background task has already finished.
 
 
@@ -132,7 +110,7 @@ sequenceDiagram
     participant SAS      as StreamableAgentStream
     participant Runner   as openai‑agents Runner
     participant MCP      as MCPServerSseWithNotifications
-    participant SSE      as Local SSE server
+    participant SSE      as SSE server
 
     %% 1. construction
     Main ->> SA: run_streamed("stream up to 10 numbers")
