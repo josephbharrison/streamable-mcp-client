@@ -222,7 +222,7 @@ We ship that change as a standard `git‑apply` patch.
 | patch file       | `patches/continue_run.patch`            |
 | target file      | `<venv‑site‑pkgs>/agents/runner.py`     |
 
-### Apply the patch
+### Apply the patch
 
 ```bash
 # from the repository root
@@ -236,7 +236,7 @@ patch -p1 < patches/continue_run.patch
 
 Tip 📦 If you vendor the SDK in ./libs/openai‑agents/, run the same command inside that folder.
 
-### Verify
+### Verify
 
 ```bash
 python - <<'PY'
@@ -246,7 +246,7 @@ print("✅  continue_run helper is present")
 PY
 ```
 
-### Revert / re‑apply after upgrades
+### Revert / re‑apply after upgrades
 ```
 git apply -R patches/continue_run.patch   # ← undo
 pip install --upgrade openai-agents       # upgrade SDK
