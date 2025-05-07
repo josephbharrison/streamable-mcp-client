@@ -39,7 +39,8 @@ The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing*
 
 # Call flow
 
-## Diagram
+### Diagram
+
 ```mermaid
 graph LR
     %% ────────────────────── 1. Python application ─────────────────────
