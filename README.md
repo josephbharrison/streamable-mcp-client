@@ -37,10 +37,9 @@ The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing*
 > 4. In **this** repo, set the client mode to `"sse"` (default) and run `python src/main.py`.
 ---
 
-# Diagram
+# Call flow
 
-### Call flow
-
+## Diagram
 ```mermaid
 graph LR
     %% ────────────────────── 1. Python application ─────────────────────
