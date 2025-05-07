@@ -9,17 +9,13 @@ Streams MCP “notifications/message” events straight through to your UI and 
 With it you can build tools that:
 
 * push incremental results (e.g. *“chunk #17 of your 1 GB file uploaded”*)
-* let the assistant comment on notifications
-* finish with a fully coherent, single‑run chat history without polling
+* let the assistant comment on notifications (not yet working)
 
 Behind the scenes the library:
 
 1. **Surfaces every `notifications/message` chunk immediately** as a normal `ResponseTextDeltaEvent`, so front‑ends (web, CLI, etc.) print progress in real time.
-2. **Appends the chunk to the agent’s `RunResultStreaming.new_items` right away**, ensuring the LLM can reference it.
+2. **Appends the chunk to the agent’s `RunResultStreaming.new_items` right away**, ensuring the LLM can reference it (in theory).
 3. **Steps the agent forward exactly once** via a tiny helper patch (`Runner.continue_run`) so the next model delta reflects the fresh tool output.
-
-The result: a chat experience where the assistant and the tool feel like a
-single, smoothly streaming conversation.
 
 ### Reference servers `streamable‑mcp‑server`
 [streamable-mcp-server](https://github.com/josephbharrison/streamable-mcp-server)
@@ -177,9 +173,9 @@ async for evt in run.stream_events(): ...
 ```
 
 - But you can’t say “give me just the **next** event and then pause”.
-- The realtime relay needs exactly that granularity: after *each* notification chunk it must
+- After each notifification chunk, the realtime relay must:
   1. Wake the agent,
-  2. Wait for **one** event (usually a model delta),
+  2. Wait for **one** event,
   3. go back to waiting for the next notification.
 - continue_run() is therefore a minimal, ~20‑line helper that peeks one item from the internal queue, taking care to propagate errors and to notice when the background task has already finished.
 
