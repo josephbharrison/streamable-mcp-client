@@ -1,4 +1,4 @@
-#  src/mcp_extensions/streamable_agent_stream.py   (realtime‑relay ✓streaming)
+#  src/mcp_extensions/streamable_agent_stream.py   (realtime relay streaming)
 
 """
 Realtime 'middle‑man' between an OpenAI‑Agents streamed run and an MCP
