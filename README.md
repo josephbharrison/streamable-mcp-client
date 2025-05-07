@@ -79,7 +79,6 @@ graph LR
   - Exposes it immediately as a ResponseTextDeltaEvent (so the UI can print 1 2 3… in realtime),
   - Copies the text into RunResultStreaming.new_items **right now**,
   - Uses our patched helper Runner.continue_run() to step the outer agent forward **once**.
-  - That lets the LLM “see” the latest tool output and decide what to say next while the tool is still running.
 
 ---
 
