@@ -4,8 +4,8 @@
 
 Surface MCP “notifications/message” events _while the tool is still running_.
 
-`streamable‑mcp‑client` glues **OpenAI Agents** to any MCP server that emits
-**live notifications** (SSE and Streamable HTTP [openai-agents SDK support pending]).
+`streamable‑mcp‑client` extends OpenAI Agents to handle live notifications from an MCP server.
+
 With it you can build tools that:
 
 * push incremental results (e.g. *“chunk #17 of your 1 GB file uploaded”*)
