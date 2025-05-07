@@ -199,9 +199,7 @@ When the SDK one day exposes an official step() / poll() API the patch can be dr
 
 - **Multiple concurrent tools**
 
-  Instantiate one StreamableAgentStream per tool invocation; each manages
-
-  its own multiplexing.
+  Instantiate one StreamableAgentStream per tool invocation; each manages its own multiplexing.
 
 
 
