@@ -41,7 +41,7 @@ async def run(mcp_server: MCPServerSseWithNotifications):
     streamable_agent = StreamableAgent(agent, mcp_server)
 
     # --- Streaming tool call ---
-    message = "stream up to 10 numbers, and acknowledge that you saw the sequence. Report back the second to last number that was streamed."
+    message = "stream up to 10 numbers. Report back the sum of the sequence"
     print(f"\n\nRunning: {message}")
 
     streamed_result = streamable_agent.run_streamed(input=message)
