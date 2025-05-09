@@ -26,7 +26,14 @@ class MCPServerMode(Enum):
 async def run(mcp_server: MCPServerSseWithNotifications):
     agent = Agent(
         name="Assistant",
-        instructions="Use the tools to answer the questions.",
+        instructions="""
+        Use the tools to answer the questions.
+        NOTE: Streaming tools provide feedback immediately to the user that are not
+        visible to the LLM while they are streaming. The final result will contain
+        all of the `chunks` that the user received. Use this context for summarizing
+        and final remarks, but do not repeat the final result, as it would be
+        redundant and confusing for the user.
+        """,
         mcp_servers=[mcp_server],
         model_settings=ModelSettings(tool_choice="required"),
     )
@@ -34,7 +41,7 @@ async def run(mcp_server: MCPServerSseWithNotifications):
     streamable_agent = StreamableAgent(agent, mcp_server)
 
     # --- Streaming tool call ---
-    message = "stream up to 10 numbers."
+    message = "stream up to 10 numbers, and acknowledge that you saw the sequence. Report back the second to last number that was streamed."
     print(f"\n\nRunning: {message}")
 
     streamed_result = streamable_agent.run_streamed(input=message)
