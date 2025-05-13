@@ -233,7 +233,7 @@ Tip 📦 If you vendor the SDK in ./libs/openai‑agents/, run the same comm
 python - <<'PY'
 from agents.runner import Runner
 assert hasattr(Runner, "continue_run"), "patch did not apply!"
-print("✅  continue_run helper is present")
+print("continue_run helper is present")
 PY
 ```
 
