@@ -27,8 +27,8 @@ The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing*
 
 | server file (repo root) | spec served | default port | endpoint | start command |
 |-------------------------|-------------|--------------|----------|---------------|
-| **`sseServer.ts`**      | **SSE MCP** (legacy – *supported* by openai‑agents) | **3000** | `http://localhost:3000/sse` | `npx tsx watch sseServer.ts` |
-| `mcpServer.ts`          | Streamable HTTP MCP (latest spec – *not yet supported* by openai‑agents) | **3000** | `http://localhost:3000/mcp` | `npx tsx watch mcpServer.ts` |
+| **`sseServer.ts`**      | **SSE MCP** (legacy – *supported* by openai‑agents) | **3000** | `http://localhost:3000/sse` | `npm run sse` |
+| `mcpServer.ts`          | Streamable HTTP MCP (latest spec – *not yet supported* by openai‑agents) | **3000** | `http://localhost:3000/mcp` | `npm run mcp` |
 
 > **Quick start:**
 > 1. `git clone https://github.com/josephbharrison/streamable‑mcp‑server`
