@@ -33,7 +33,7 @@ The newer **Streamable HTTP MCP** endpoint is included for **future‑proofing*
 > **Quick start:**
 > 1. `git clone https://github.com/josephbharrison/streamable‑mcp‑server`
 > 2. `cd streamable‑mcp‑server && npm ci`
-> 3. `npm run sse`   *(launches the compatible SSE server)*
+> 3. `npm run sse` *(launches the compatible SSE server)*
 > 4. In **this** repo, set the client mode to `MCPServerMode.TYPESCRIPT_SSE` (default) and run `python src/main.py`.
 ---
 
